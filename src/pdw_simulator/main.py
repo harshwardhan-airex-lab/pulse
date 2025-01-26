@@ -14,6 +14,10 @@ import sys
 import pandas as pd
 from timing import SimulationTimer
 
+#For Validating the data
+# In main.py 
+from pdw_simulator.validation import PDWValidator
+
 sys.stdout=open('output.txt','wt')
 # Get the unit registry from scenario_geometry_functions
 ureg = get_unit_registry()
@@ -24,22 +28,57 @@ def load_config(filename):
     with open(filename, 'r') as file:
         return yaml.safe_load(file)
 
-def create_scenario(config):
-    scenario = Scenario(config['scenario'])
+# def create_scenario(config):
+#     scenario = Scenario(config['scenario'])
     
-    for radar_config in config['radars']:
-        radar = Radar(radar_config)
-        radar.calculate_trajectory(scenario.end_time, scenario.time_step)
-        scenario.radars.append(radar)
-        # print(f"Added {radar.name} to scenario")
+#     for radar_config in config['radars']:
+#         radar = Radar(radar_config)
+#         radar.calculate_trajectory(scenario.end_time, scenario.time_step)
+#         scenario.radars.append(radar)
+#         # print(f"Added {radar.name} to scenario")
     
-    for sensor_config in config['sensors']:
-        sensor = Sensor(sensor_config)
-        sensor.calculate_trajectory(scenario.end_time, scenario.time_step)
-        scenario.sensors.append(sensor)
+#     for sensor_config in config['sensors']:
+#         sensor = Sensor(sensor_config)
+#         sensor.calculate_trajectory(scenario.end_time, scenario.time_step)
+#         scenario.sensors.append(sensor)
     
-    return scenario
+#     return scenario
 
+def create_scenario(config):
+    # Create validator instance
+    validator = PDWValidator()
+    
+    try:
+        # Validate full configuration
+        validation_errors = validator.validate_full_config(config)
+        if validation_errors:
+            print("Configuration validation errors:")
+            for category, errors in validation_errors.items():
+                for error in errors:
+                    print(f"- {category}: {error}")
+            return None
+            
+        # Create scenario using your existing method
+        scenario = Scenario(config['scenario'])
+        
+        # Add radars (they will be validated internally due to updates in models.py)
+        for radar_config in config['radars']:
+            radar = Radar(radar_config)
+            radar.calculate_trajectory(scenario.end_time, scenario.time_step)
+            scenario.radars.append(radar)
+            print(f"Added {radar.name} to scenario")
+        
+        # Add sensors
+        for sensor_config in config['sensors']:
+            sensor = Sensor(sensor_config)
+            sensor.calculate_trajectory(scenario.end_time, scenario.time_step)
+            scenario.sensors.append(sensor)
+        
+        return scenario
+        
+    except Exception as e:
+        print(f"Error creating scenario: {e}")
+        return None
 
 def run_simulation(scenario, output_base_filename):
     """
@@ -64,15 +103,37 @@ def run_simulation(scenario, output_base_filename):
         for sensor in scenario.sensors:
             for radar in scenario.radars:
                 pdw = generate_pdw(sensor, radar, scenario.current_time)
+                # if pdw:
+                #     times.append(scenario.current_time.magnitude)
+                #     sensor_ids.append(sensor.name)
+                #     radar_ids.append(radar.name)
+                #     toas.append(pdw['TOA'].magnitude)
+                #     amplitudes.append(pdw['Amplitude'].magnitude)
+                #     frequencies.append(pdw['Frequency'].magnitude)
+                #     pulse_widths.append(pdw['PulseWidth'].magnitude)
+                #     aoas.append(pdw['AOA'].magnitude)
                 if pdw:
-                    times.append(scenario.current_time.magnitude)
-                    sensor_ids.append(sensor.name)
-                    radar_ids.append(radar.name)
-                    toas.append(pdw['TOA'].magnitude)
-                    amplitudes.append(pdw['Amplitude'].magnitude)
-                    frequencies.append(pdw['Frequency'].magnitude)
-                    pulse_widths.append(pdw['PulseWidth'].magnitude)
-                    aoas.append(pdw['AOA'].magnitude)
+                    try:
+                        # Validate PDW measurements
+                        if (validator.validate_frequency(pdw['Frequency'].magnitude) and
+                            validator.validate_amplitude(pdw['Amplitude'].magnitude) and
+                            validator.validate_pulse_width(pdw['PulseWidth'].magnitude) and
+                            validator.validate_aoa(pdw['AOA'].magnitude)):
+                            
+                            # Store valid measurements
+                            times.append(scenario.current_time.magnitude)
+                            sensor_ids.append(sensor.name)
+                            radar_ids.append(radar.name)
+                            toas.append(pdw['TOA'].magnitude)
+                            amplitudes.append(pdw['Amplitude'].magnitude)
+                            frequencies.append(pdw['Frequency'].magnitude)
+                            pulse_widths.append(pdw['PulseWidth'].magnitude)
+                            aoas.append(pdw['AOA'].magnitude)
+                        else:
+                            print(f"Warning: Invalid PDW measurement skipped for radar {radar.name}")
+                    except Exception as e:
+                        print(f"Warning: PDW validation failed: {e}")
+                        continue
 
         scenario.current_time += scenario.time_step
 
@@ -168,6 +229,9 @@ def main():
     with timer.time_section("Configuration Loading"):
         config = load_config('dataconfig.yaml')
         scenario = create_scenario(config)
+        print(scenario)
+        if scenario is None:
+                raise ValueError("Failed to create valid scenario")
     
     with timer.time_section("Simulation"):
         output_base_filename = 'pdw'

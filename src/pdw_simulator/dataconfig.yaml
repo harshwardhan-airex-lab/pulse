@@ -1,7 +1,7 @@
-# Configuration file for PDW simulator
+# Configuration file for PDW simulator with validation constraints
 scenario:
   start_time: 0.0
-  end_time: 100.0
+  end_time: 10.0
   time_step: 0.01
 
 radars:
@@ -21,11 +21,11 @@ radars:
       repetitions: [5, 5, 5]
     frequency_type: "switched"
     frequency_params:
-      frequency_pattern: [9.2e9, 9.4e9, 9.6e9]
+      frequency_pattern: [1.5e9, 2.0e9, 2.5e9] # Changed to be within 0.5-40 GHz range with >4MHz separation
       repetitions: [5, 5, 5]
     pulse_width_type: "switched"
     pulse_width_params:
-      pulse_width_pattern: [1.2e-6, 1.4e-6, 1.6e-6]
+      pulse_width_pattern: [150e-6, 200e-6, 250e-6] # Changed to 150-250 microseconds
       repetitions: [5, 5, 5]
     lobe_pattern:
       type: "Sinc"
@@ -33,7 +33,7 @@ radars:
       radar_power_at_main_lobe: 0.0
       radar_power_at_back_lobe: -20.0
 
-  - name: "Radar2" # Radar with jitter and varying rotation
+  - name: "Radar2"
     power: 1800.0
     start_position: [500, -300]
     velocity: [0, -10]
@@ -50,21 +50,19 @@ radars:
     pri_params:
       mean_pri: 0.001
       jitter_percentage: 8.0
-    frequency_type: "jitter"
+    frequency_type: "fixed"
     frequency_params:
-      mean_frequency: 9.5e9
-      jitter_percentage: 8.0
-    pulse_width_type: "jitter"
+      frequency: 3.0e9 # 3 GHz - within range
+    pulse_width_type: "fixed"
     pulse_width_params:
-      mean_pulse_width: 1.5e-6
-      jitter_percentage: 8.0
+      pulse_width: 300e-6 # 300 microseconds
     lobe_pattern:
       type: "Sinc"
       main_lobe_opening_angle: 4.0
       radar_power_at_main_lobe: 0.0
       radar_power_at_back_lobe: -22.0
 
-  - name: "Radar3" # Fast moving radar with stagger patterns
+  - name: "Radar3"
     power: 2200.0
     start_position: [100, 200]
     velocity: [100, 10]
@@ -79,17 +77,17 @@ radars:
       pri_pattern: [0.0007, 0.0008, 0.0009, 0.001]
     frequency_type: "stagger"
     frequency_params:
-      frequency_pattern: [9.3e9, 9.5e9, 9.7e9, 9.9e9]
+      frequency_pattern: [4.0e9, 5.0e9, 6.0e9, 7.0e9] # Changed to be within range with >4MHz separation
     pulse_width_type: "stagger"
     pulse_width_params:
-      pulse_width_pattern: [1.1e-6, 1.3e-6, 1.5e-6, 1.7e-6]
+      pulse_width_pattern: [200e-6, 250e-6, 300e-6, 350e-6] # Changed to microseconds range
     lobe_pattern:
       type: "Sinc"
       main_lobe_opening_angle: 3.0
       radar_power_at_main_lobe: 0.0
       radar_power_at_back_lobe: -25.0
 
-  - name: "Radar4" # High frequency radar with varying patterns
+  - name: "Radar4"
     power: 2500.0
     start_position: [-400, 300]
     velocity: [-15, 25]
@@ -108,11 +106,11 @@ radars:
       repetitions: [6, 6, 6]
     frequency_type: "switched"
     frequency_params:
-      frequency_pattern: [10.0e9, 10.2e9, 10.4e9]
+      frequency_pattern: [8.0e9, 9.0e9, 10.0e9] # Changed to be within range
       repetitions: [6, 6, 6]
     pulse_width_type: "jitter"
     pulse_width_params:
-      mean_pulse_width: 1.0e-6
+      mean_pulse_width: 400e-6 # 400 microseconds
       jitter_percentage: 10.0
     lobe_pattern:
       type: "Sinc"
@@ -120,7 +118,7 @@ radars:
       radar_power_at_main_lobe: 0.0
       radar_power_at_back_lobe: -28.0
 
-  - name: "Radar5" # Low power, high precision radar
+  - name: "Radar5"
     power: 1000.0
     start_position: [800, -600]
     velocity: [-5, -5]
@@ -135,10 +133,10 @@ radars:
       pri: 0.0004
     frequency_type: "fixed"
     frequency_params:
-      frequency: 9.8e9
+      frequency: 15.0e9 # 15 GHz - within range
     pulse_width_type: "fixed"
     pulse_width_params:
-      pulse_width: 0.8e-6
+      pulse_width: 450e-6 # 450 microseconds
     lobe_pattern:
       type: "Sinc"
       main_lobe_opening_angle: 2.0
@@ -150,10 +148,10 @@ sensors:
     start_position: [2000, 2000]
     velocity: [25, 10]
     start_time: 0.0
-    saturation_level: "-70 dB"
+    saturation_level: "-50 dB" # Changed to be within -65 to 0 dBm range
     freq_padding_factor: 5
     detection_probability:
-      level: [-75, -80, -85, -90]
+      level: [-60, -62, -63, -64] # Changed to be within -65 to 0 dBm range
       probability: [100, 90, 70, 50]
     amplitude_error:
       systematic:
@@ -169,7 +167,7 @@ sensors:
         error: "0 s"
       arbitrary:
         type: "gaussian"
-        error: "5e-9 s"
+        error: "25e-9 s" # Changed to match ±25ns accuracy requirement
     frequency_error:
       systematic:
         type: "linear"
@@ -191,4 +189,4 @@ sensors:
         error: "0 deg"
       arbitrary:
         type: "gaussian"
-        error: "2 deg"
+        error: "2 deg" # Within 2-5 degree accuracy requirement
