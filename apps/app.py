@@ -9,7 +9,7 @@ import functools
 import sys
 
 # Import your custom styling from styles.py
-from styles import apply_custom_styles
+from styles import apply_custom_styles, add_bg_from_local
 
 # Set Streamlit page config
 st.set_page_config(
@@ -195,7 +195,8 @@ def display_output(system_config):
 ###############################################################################
 
 def main():
-    apply_custom_styles()  # Apply your styles from styles.py
+    add_bg_from_local('bg.jpg')  # Call this first
+    apply_custom_styles()         # Call this second  # Apply your styles from styles.py
 
     st.title("Pulse Descriptor Word Simulator")
 
