@@ -76,81 +76,136 @@ def parse_value_and_unit(string_value):
 def detect_pulse(amplitude, detection_levels, detection_probabilities, saturation_level):
     """
     Determine if a pulse is detected based on its amplitude.
-    
-    :param amplitude: Amplitude of the pulse
-    :param detection_levels: List of detection levels
-    :param detection_probabilities: List of detection probabilities corresponding to levels
-    :param saturation_level: Saturation level of the sensor
-    :return: Boolean indicating whether the pulse is detected
+    All amplitudes should be in dBm.
     """
-    if amplitude.to('dB').magnitude > saturation_level.to('dB').magnitude:
+    # Convert saturation_level to dBm if it's a string
+    if isinstance(saturation_level, str):
+        value = float(saturation_level.split()[0])
+        saturation_level = value * ureg.dBm
+
+    # Compare amplitudes (all should be in dBm)
+    if amplitude.magnitude > saturation_level.magnitude:
         return True
-    
-    for level, prob in zip(detection_levels,detection_probabilities):
-        if amplitude.to('dB').magnitude > level.to('dB').magnitude:
+
+    for level, prob in zip(detection_levels, detection_probabilities):
+        # Convert level to dBm if needed
+        if isinstance(level, (int, float)):
+            level = level * ureg.dBm
+        elif isinstance(level, str):
+            value = float(level.split()[0])
+            level = value * ureg.dBm
+
+        if amplitude.magnitude > level.magnitude:
             return np.random.random() < prob
     return False
-        # if amplitude > saturation_level:
-        #     return True
-        # for level, prob in zip(detection_levels, detection_probabilities):
-        #     if amplitude > level:
-        #         return np.random.random() < prob
-        # return False
+
+# def detect_pulse(amplitude, detection_levels, detection_probabilities, saturation_level):
+#     """
+#     Determine if a pulse is detected based on its amplitude.
+    
+#     :param amplitude: Amplitude of the pulse
+#     :param detection_levels: List of detection levels
+#     :param detection_probabilities: List of detection probabilities corresponding to levels
+#     :param saturation_level: Saturation level of the sensor
+#     :return: Boolean indicating whether the pulse is detected
+#     """
+#     if amplitude.to('dB').magnitude > saturation_level.to('dB').magnitude:
+#         return True
+    
+#     for level, prob in zip(detection_levels,detection_probabilities):
+#         if amplitude.to('dB').magnitude > level.to('dB').magnitude:
+#             return np.random.random() < prob
+#     return False
+#         # if amplitude > saturation_level:
+#         #     return True
+#         # for level, prob in zip(detection_levels, detection_probabilities):
+#         #     if amplitude > level:
+#         #         return np.random.random() < prob
+#         # return False
 
 
 def measure_amplitude(true_amplitude, r, P_theta, t, P0, amplitude_error_syst, amplitude_error_arb):
     """
     Measure the amplitude of a detected pulse.
-    
-    :param true_amplitude: True amplitude of the pulse (in dB)
-    :param r: Distance between radar and sensor (in meters)
-    :param P_theta: Amplitude correction due to radar antenna lobe pattern (in dB)
-    :param t: Current time
-    :param P0: Amplitude of an emitted pulse from an equivalent omnidirectional radar antenna (in watts)
-    :param amplitude_error_syst: Function to generate systematic error
-    :param amplitude_error_arb: Function to generate arbitrary error
-    :return: Measured amplitude (in dB)
+    All amplitude measurements are in dBm.
     """
-    # print("\nDebugging measure_amplitude:")
-    # print(f"true_amplitude: {true_amplitude}, type: {type(true_amplitude)}")
-    # print(f"r: {r}, type: {type(r)}")
-    # print(f"P_theta: {P_theta}, type: {type(P_theta)}")
-    # print(f"t: {t}, type: {type(t)}")
-    # print(f"P0: {P0}, type: {type(P0)}")
-
-    # Ensure all inputs are Pint Quantities with correct units
+    # Ensure proper units
     r = ureg.Quantity(r).to(ureg.meter)
-    P_theta = ureg.Quantity(P_theta).to(ureg.dB)
-    P0 = ureg.Quantity(P0).to(ureg.watt)
+    P0 = ureg.Quantity(P0).to(ureg.dBm)
     
     # Convert r to a dimensionless quantity by dividing by 1 meter
     r_dimensionless = r / ureg.meter
-    Pr = 20 * ureg.dB * np.log10(r_dimensionless.magnitude)
     
-    # Convert P0 from watts to dB
-    P0_dB = 10 * ureg.dB * np.log10(P0.magnitude)
+    # Calculate path loss in dB
+    Pr = 20 * np.log10(r_dimensionless.magnitude) * ureg.dBm
     
-    P_syst = ureg.Quantity(amplitude_error_syst(t)).to(ureg.dB)
-    P_arb = ureg.Quantity(amplitude_error_arb(1)[0]).to(ureg.dB)
+    # P_theta should already be in dBm from the radar calculations
+    if not isinstance(P_theta, ureg.Quantity):
+        P_theta = P_theta * ureg.dBm
+        
+    # Get systematic and arbitrary errors
+    P_syst = ureg.Quantity(amplitude_error_syst(t)).to(ureg.dBm)
+    P_arb = ureg.Quantity(amplitude_error_arb(1)[0]).to(ureg.dBm)
     
-    # print(f"After conversion:")
-    # print(f"Pr: {Pr}, Dimensionality: {Pr.dimensionality}")
-    # print(f"P0_dB: {P0_dB}, type: {P0_dB.dimensionality}")
-    # print(f"P_theta: {P_theta}, type: {P_theta.dimensionality}")
-    # print(f"P_syst: {P_syst}, type: {P_syst.dimensionality}")
-    # print(f"P_arb: {P_arb}, type: {P_arb.dimensionality}")
-
-
-    # print(f"Pr: {Pr}, Dimensionality: {type(Pr)}")
-    # print(f"P0_dB: {P0_dB}, type: {type(P0_dB)}")
-    # print(f"P_theta: {P_theta}, type: {type(P_theta)}")
-    # print(f"P_syst: {P_syst}, type: {type(P_syst)}")
-    # print(f"P_arb: {P_arb}, type: {type(P_arb)}")
-    total_magnitude = P0_dB.magnitude - Pr.magnitude + P_theta.magnitude + P_syst.magnitude + P_arb.magnitude
-    measured_amplitude = ureg.Quantity(total_magnitude, ureg.dB)
-    # print(f"measured_amplitude: {measured_amplitude}, type: {type(measured_amplitude)}")
+    # Calculate total amplitude in dBm
+    total_magnitude = P0.magnitude - Pr.magnitude + P_theta.magnitude + P_syst.magnitude + P_arb.magnitude
+    measured_amplitude = total_magnitude * ureg.dBm
     
     return measured_amplitude
+
+# def measure_amplitude(true_amplitude, r, P_theta, t, P0, amplitude_error_syst, amplitude_error_arb):
+#     """
+#     Measure the amplitude of a detected pulse.
+    
+#     :param true_amplitude: True amplitude of the pulse (in dB)
+#     :param r: Distance between radar and sensor (in meters)
+#     :param P_theta: Amplitude correction due to radar antenna lobe pattern (in dB)
+#     :param t: Current time
+#     :param P0: Amplitude of an emitted pulse from an equivalent omnidirectional radar antenna (in watts)
+#     :param amplitude_error_syst: Function to generate systematic error
+#     :param amplitude_error_arb: Function to generate arbitrary error
+#     :return: Measured amplitude (in dB)
+#     """
+#     # print("\nDebugging measure_amplitude:")
+#     # print(f"true_amplitude: {true_amplitude}, type: {type(true_amplitude)}")
+#     # print(f"r: {r}, type: {type(r)}")
+#     # print(f"P_theta: {P_theta}, type: {type(P_theta)}")
+#     # print(f"t: {t}, type: {type(t)}")
+#     # print(f"P0: {P0}, type: {type(P0)}")
+
+#     # Ensure all inputs are Pint Quantities with correct units
+#     r = ureg.Quantity(r).to(ureg.meter)
+#     P_theta = ureg.Quantity(P_theta).to(ureg.dB)
+#     P0 = ureg.Quantity(P0).to(ureg.watt)
+    
+#     # Convert r to a dimensionless quantity by dividing by 1 meter
+#     r_dimensionless = r / ureg.meter
+#     Pr = 20 * ureg.dB * np.log10(r_dimensionless.magnitude)
+    
+#     # Convert P0 from watts to dB
+#     P0_dB = 10 * ureg.dB * np.log10(P0.magnitude)
+    
+#     P_syst = ureg.Quantity(amplitude_error_syst(t)).to(ureg.dB)
+#     P_arb = ureg.Quantity(amplitude_error_arb(1)[0]).to(ureg.dB)
+    
+#     # print(f"After conversion:")
+#     # print(f"Pr: {Pr}, Dimensionality: {Pr.dimensionality}")
+#     # print(f"P0_dB: {P0_dB}, type: {P0_dB.dimensionality}")
+#     # print(f"P_theta: {P_theta}, type: {P_theta.dimensionality}")
+#     # print(f"P_syst: {P_syst}, type: {P_syst.dimensionality}")
+#     # print(f"P_arb: {P_arb}, type: {P_arb.dimensionality}")
+
+
+#     # print(f"Pr: {Pr}, Dimensionality: {type(Pr)}")
+#     # print(f"P0_dB: {P0_dB}, type: {type(P0_dB)}")
+#     # print(f"P_theta: {P_theta}, type: {type(P_theta)}")
+#     # print(f"P_syst: {P_syst}, type: {type(P_syst)}")
+#     # print(f"P_arb: {P_arb}, type: {type(P_arb)}")
+#     total_magnitude = P0_dB.magnitude - Pr.magnitude + P_theta.magnitude + P_syst.magnitude + P_arb.magnitude
+#     measured_amplitude = ureg.Quantity(total_magnitude, ureg.dB)
+#     # print(f"measured_amplitude: {measured_amplitude}, type: {type(measured_amplitude)}")
+    
+#     return measured_amplitude
 
 
 def measure_toa(true_toa, r, t, toa_error_syst, toa_error_arb):

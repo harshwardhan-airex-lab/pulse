@@ -35,7 +35,7 @@ class Radar:
         self.current_period = self.rotation_params['T_rot'] * ureg.second
         # self.frequency = config['frequency'] * ureg.hertz
         # self.pulse_width = config['pulse_width'] * ureg.second
-        self.power = config['power'] * ureg.watt
+        self.power = config['power'] * ureg.dBm
         self.trajectory = None
         self.current_position = self.start_position
 
@@ -106,7 +106,10 @@ class Radar:
     
     def calculate_power_at_angle(self, theta):
         if self.lobe_pattern_type == 'Sinc':
-            return sinc_lobe_pattern(theta, self.theta_ml, self.P_ml, self.P_bl)
+            power = sinc_lobe_pattern(theta, self.theta_ml, self.P_ml, self.P_bl)
+            if hasattr(power,'units') and power.units==ureg.dB:
+                power=power.magnitude*ureg.dBm
+            return power
         else:
             raise ValueError(f"Unsupported lobe pattern type: {self.lobe_pattern_type}")
 

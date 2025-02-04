@@ -428,6 +428,6 @@ def sinc_lobe_pattern(theta, theta_ml, P_ml, P_bl):
     # For theta < -pi/2
     mask3 = theta < -np.pi/2
     P_theta[mask3] = 20 * np.log10(np.abs(np.sin(np.pi * x[mask3]) / (np.pi * x[mask3]))) + P_ml + 2/np.pi * P_bl * (-theta[mask3] - np.pi/2)
-
-    return P_theta * ureg.dB
+    power=P_theta*ureg.dBm
+    return power
 
