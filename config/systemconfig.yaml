@@ -1,0 +1,63 @@
+# System Configuration File for PULSE PDW Simulator
+# Defines output paths and file naming conventions
+
+# Base directories
+directories:
+  output: "./output" # Base directory for all output files
+  logs: "./logs" # Directory for log files
+  temp: "./temp" # Directory for temporary files
+  config: "./config" # Directory for configuration files
+
+# File paths and naming
+files:
+  pdw_data:
+    directory: "${directories.output}/pdw_data"
+    base_name: "pdw_"
+    extension: ".csv"
+    use_uuid: true
+    preserve_history: true # If true, keeps old files; if false, overwrites
+    max_history: 10 # Maximum number of historical files to keep
+
+  metadata:
+    directory: "${directories.output}/metadata"
+    base_name: "pdw_metadata_"
+    extension: ".csv"
+    use_uuid: true
+    preserve_history: true
+
+  timing_reports:
+    directory: "${directories.output}/timing"
+    base_name: "simulation_timing_"
+    extension: ".yaml"
+    use_uuid: true
+    preserve_history: false
+
+# File permissions
+permissions:
+  output_files:
+    read: true
+    write: true
+    create_dirs: true
+    auto_create: true # Automatically create directories if they don't exist
+
+# Cleanup settings
+cleanup:
+  auto_cleanup: true
+  cleanup_interval: 7 # Days to keep files before cleanup
+  exclude_patterns:
+    - "*_important*"
+    - "*_archived*"
+
+# UUID settings
+uuid:
+  format: "timestamp_uuid" # Options: simple_uuid, timestamp_uuid
+  case: "lower" # Options: upper, lower
+  include_timestamp: true
+  timestamp_format: "%Y%m%d_%H%M%S"
+
+# Error handling
+error_handling:
+  create_backup: true
+  retry_attempts: 3
+  retry_delay: 1 # seconds between retries
+  log_errors: true
