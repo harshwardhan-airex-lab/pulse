@@ -26,40 +26,6 @@ without the need for physical hardware.
 - **Error Modeling**: Support for various error models including Constant, Linear, Sinusoidal, Gaussian, and Uniform
 - **High-Performance Computing**: Optimized numerical computations using JAX and NumPy
 
-## Supported Domains and Sensors
-
-### Air Monitoring
-
-- Temperature, Humidity, Pressure
-- Particulate Matter (PM2.5, PM10)
-- Gas Sensors (CO, NOx, SO2)
-- Doppler Weather Radar
-- Lidar (Aerosol/Cloud Profiling)
-
-### Sea Monitoring
-
-- Buoy-Based Weather Sensors
-- Water Quality Sensors
-- Acoustic/Hydrophone
-- Marine Radar
-- Sonar Systems
-
-### Ground Monitoring
-
-- Seismic Sensors
-- Ground-Penetrating Radar
-- Soil Moisture Sensors
-- Geophones
-
-### Infrastructure Monitoring
-
-- Strain Gauges
-- Accelerometers
-- Displacement Sensors
-- Fiber-Optic Sensors
-- Acoustic Emission Sensors
-- Perimeter Radar
-
 ## Project Structure
 
 ```
