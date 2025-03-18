@@ -7,6 +7,11 @@ import pandas as pd
 import copy
 import functools
 import sys
+# Add this import at the top with other imports
+import ast
+
+# Modify the main flow to include sensor configuration
+# After the radar configuration pages and before the review page
 
 # Import your custom styling from styles.py
 from styles import apply_custom_styles, add_bg_from_local
@@ -716,8 +721,204 @@ def main():
             col1.button("Next", on_click=save_radar_config, key=f"radar_{radar_index}_next_btn")
             col2.button("Back", on_click=prev_page, key=f"radar_{radar_index}_back_btn")
 
-    # -- REVIEW PAGE
+    # -- SENSOR CONFIGURATION PAGE
     elif st.session_state.page == st.session_state.num_radars + 2:
+        st.header("Sensor Configuration")
+        
+        # Add number of sensors selection if not already set
+        if 'num_sensors' not in st.session_state:
+            st.session_state.num_sensors = len(st.session_state.config.get('sensors', []))
+        
+        num_sensors = st.number_input('Number of Sensors', 
+                                    min_value=1,  # Changed from 0 to 1 since we need at least one sensor
+                                    max_value=10, 
+                                    value=st.session_state.num_sensors, 
+                                    step=1)
+        st.session_state.num_sensors = num_sensors
+        
+        # Initialize sensors if not present
+        if 'sensors' not in st.session_state.config:
+            st.session_state.config['sensors'] = []
+        
+        # Ensure we have the correct number of sensors
+        while len(st.session_state.config['sensors']) < num_sensors:
+            st.session_state.config['sensors'].append({
+                'name': f'Sensor{len(st.session_state.config["sensors"]) + 1}',
+                'start_position': [0, 0],
+                'velocity': [0, 0],
+                'start_time': 0,
+                'saturation_level': '-70 dB',
+                'detection_probability': {
+                    'level': [-80, -85, -90, -95],
+                    'probability': [100, 85, 60, 30]
+                },
+                'amplitude_error': {
+                    'systematic': {'type': 'constant', 'error': '0 dB'},
+                    'arbitrary': {'type': 'gaussian', 'error': '0.5 dB'}
+                },
+                'toa_error': {
+                    'systematic': {'type': 'constant', 'error': '0 s'},
+                    'arbitrary': {'type': 'gaussian', 'error': '1e-9 s'}
+                },
+                'frequency_error': {
+                    'systematic': {'type': 'linear', 'error': '0 Hz', 'rate': '100 Hz/s'},
+                    'arbitrary': {'type': 'gaussian', 'error': '1e6 Hz'}
+                },
+                'pulse_width_error': {
+                    'systematic': {'type': 'constant', 'error': '0 s'},
+                    'arbitrary': {'type': 'uniform', 'error': '2%'}
+                },
+                'aoa_error': {
+                    'systematic': {'type': 'constant', 'error': '0 deg'},
+                    'arbitrary': {'type': 'gaussian', 'error': '1 deg'}
+                },
+                'freq_padding_factor': 4
+            })
+        
+        # Configure each sensor
+        for idx, sensor in enumerate(st.session_state.config['sensors'][:num_sensors]):
+            with st.expander(f"Configure {sensor.get('name', f'Sensor{idx + 1}')}"):
+                # Create tabs for different settings
+                tabs = st.tabs(["Basic Settings", "Detection Settings", "Error Settings"])
+                
+                # Basic Settings Tab
+                with tabs[0]:
+                    st.subheader("Basic Information")
+                    sensor['name'] = st.text_input('Sensor Name', 
+                                                value=sensor.get('name', f'Sensor{idx + 1}'), 
+                                                key=f'sensor_name_{idx}')
+                    
+                    sensor['freq_padding_factor'] = st.number_input(
+                        "Frequency Measurement Padding Factor",
+                        min_value=1,
+                        max_value=16,
+                        value=int(sensor.get('freq_padding_factor', 4)),
+                        help="Higher values give better frequency resolution but increase computation time",
+                        key=f'freq_padding_{idx}'
+                    )
+                    
+                    st.subheader("Position and Movement")
+                    start_position_str = st.text_input(
+                        "Start Position (x, y in meters)",
+                        value=str(sensor.get('start_position', [0, 0])),
+                        key=f'start_pos_{idx}'
+                    )
+                    try:
+                        sensor['start_position'] = ast.literal_eval(start_position_str)
+                    except:
+                        st.error("Invalid format for Start Position. Please enter a list like [x, y]")
+                        
+                    velocity_str = st.text_input(
+                        "Velocity (vx, vy in m/s)",
+                        value=str(sensor.get('velocity', [0, 0])),
+                        key=f'velocity_{idx}'
+                    )
+                    try:
+                        sensor['velocity'] = ast.literal_eval(velocity_str)
+                    except:
+                        st.error("Invalid format for Velocity. Please enter a list like [vx, vy]")
+                        
+                    sensor['start_time'] = st.number_input(
+                        "Start Time (s)",
+                        value=float(sensor.get('start_time', 0.0)),
+                        format="%.2f",
+                        key=f'start_time_{idx}'
+                    )
+                    
+                    sensor['saturation_level'] = st.text_input(
+                        "Saturation Level (dB)",
+                        value=sensor.get('saturation_level', '-70 dB'),
+                        key=f'sat_level_{idx}'
+                    )
+                
+                # Detection Settings Tab
+                with tabs[1]:
+                    st.subheader("Detection Probability Settings")
+                    if 'detection_probability' not in sensor:
+                        sensor['detection_probability'] = {'level': [], 'probability': []}
+                    
+                    level_str = st.text_input(
+                        "Detection Levels (dB)",
+                        value=str(sensor['detection_probability'].get('level', [-80, -90, -95, -100])),
+                        key=f'det_level_{idx}'
+                    )
+                    prob_str = st.text_input(
+                        "Detection Probabilities (%)",
+                        value=str(sensor['detection_probability'].get('probability', [100, 80, 30, 5])),
+                        key=f'det_prob_{idx}'
+                    )
+                    try:
+                        sensor['detection_probability']['level'] = ast.literal_eval(level_str)
+                        sensor['detection_probability']['probability'] = ast.literal_eval(prob_str)
+                    except:
+                        st.error("Invalid format for detection levels or probabilities")
+                
+                # Error Settings Tab
+                with tabs[2]:
+                    error_types = ['amplitude', 'toa', 'frequency', 'pulse_width', 'aoa']
+                    error_tabs = st.tabs([type.upper() for type in error_types])
+                    
+                    for i, error_type in enumerate(error_types):
+                        with error_tabs[i]:
+                            if f'{error_type}_error' not in sensor:
+                                sensor[f'{error_type}_error'] = {
+                                    'systematic': {'type': 'constant', 'error': '0'},
+                                    'arbitrary': {'type': 'gaussian', 'error': '0'}
+                                }
+                            
+                            # Systematic Error
+                            st.subheader("Systematic Error")
+                            sys_error = sensor[f'{error_type}_error']['systematic']
+                            sys_error['type'] = st.selectbox(
+                                "Type",
+                                ['constant', 'linear'],
+                                index=0 if sys_error.get('type') == 'constant' else 1,
+                                key=f'sys_{error_type}_type_{idx}'
+                            )
+                            
+                            sys_error['error'] = st.text_input(
+                                "Error Value",
+                                value=sys_error.get('error', '0'),
+                                key=f'sys_{error_type}_error_{idx}'
+                            )
+                            
+                            if sys_error['type'] == 'linear':
+                                sys_error['rate'] = st.text_input(
+                                    "Error Rate",
+                                    value=sys_error.get('rate', '0'),
+                                    key=f'sys_{error_type}_rate_{idx}'
+                                )
+                            
+                            # Arbitrary Error
+                            st.subheader("Arbitrary Error")
+                            arb_error = sensor[f'{error_type}_error']['arbitrary']
+                            arb_error['type'] = st.selectbox(
+                                "Type",
+                                ['gaussian', 'uniform'],
+                                index=0 if arb_error.get('type') == 'gaussian' else 1,
+                                key=f'arb_{error_type}_type_{idx}'
+                            )
+                            
+                            arb_error['error'] = st.text_input(
+                                "Error Value",
+                                value=arb_error.get('error', '0'),
+                                key=f'arb_{error_type}_error_{idx}'
+                            )
+        
+        col1, col2 = st.columns([1,1])
+        
+        # Function to save sensor configuration and move to review page
+        def save_sensor_config():
+            st.session_state.config['sensors'] = st.session_state.config['sensors'][:num_sensors]
+            save_temp_config(st.session_state.config, temp_config_path)
+            next_page()
+        
+        # Next and Back buttons
+        col1.button("Next", on_click=save_sensor_config, key='sensor_next')
+        col2.button("Back", on_click=prev_page, key='sensor_back')
+
+    # -- REVIEW PAGE
+    elif st.session_state.page == st.session_state.num_radars + 3:
         st.header("Review Configuration")
 
         scenario_cfg = st.session_state.config.get('scenario', {})
@@ -744,13 +945,38 @@ def main():
         col2.button("Back", on_click=prev_page, key="review_back_btn")
 
     # -- OUTPUT PAGE
-    elif st.session_state.page == st.session_state.num_radars + 3:
+    elif st.session_state.page == st.session_state.num_radars + 4:
         st.header("Simulation Output")
         display_output(system_config)
 
         col1, col2 = st.columns([1,1])
         col1.button("Back", on_click=prev_page, key="output_back_btn")
         col2.button("Restart", on_click=lambda: [reset_app()], key="output_restart_btn")
+        
+    def go_to_references():
+        st.session_state.page = st.session_state.num_radars + 5
+
+    st.sidebar.button("References", on_click=go_to_references, key='sidebar_references',use_container_width=False)
+
+    # References Page
+    if st.session_state.page == st.session_state.num_radars + 5:
+        st.header("References")
+        st.latex(r"""
+        \begin{aligned} &\textbf{Reference 1:} \\
+        &\text{Opland, E. J. (2013). Clustering Evaluation for Deinterleaving. FFI-rapport 2013/00567.}
+        \end{aligned}
+        """)
+        
+        st.latex(r"""
+        \begin{aligned}
+        &\textbf{Reference 2:} \\
+        &\text{Humphries, J. 'Trip', Sutphin, S., Mulvaney, B., Landreth, J. (Year). GR-PDW: An OOT Module for Pulse Descriptor Word (PDW) Generation.} \\
+        &\text{TRIP.HUMPHRIES@GTRI.GATECH.EDU, STAN.SUTPHIN@GTRI.GATECH.EDU, BRIAN.MULVANEY@GTRI.GATECH.EDU, JAMES.LANDRETH@GTRI.GATECH.EDU.}
+        \end{aligned}
+        """)
+        col1, col2 = st.columns([1,1])
+        col1.button("Back", on_click=prev_page, key='references_back')
+        col2.button("Restart", on_click=reset_app, key='references_restart')
 
     # Sidebar
     st.sidebar.button("Restart", on_click=lambda: reset_app(), key="sidebar_restart_btn")
