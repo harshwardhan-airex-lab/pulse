@@ -201,7 +201,6 @@ def main():
     with timer.time_section("Simulation"):
         output_base_filename = 'pdw'
         run_simulation(scenario,output_base_filename,system_config)
-        
         # Create lists to store all the data
         with timer.time_section("Data Structure Initialization"):
             times = []
