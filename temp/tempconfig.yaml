@@ -48,6 +48,39 @@ radars:
   velocity:
   - 10
   - 20
+- frequency_params:
+    frequency: 1512000000.0
+  frequency_type: fixed
+  lobe_pattern:
+    main_lobe_opening_angle: 4.0
+    radar_power_at_back_lobe: -22.0
+    radar_power_at_main_lobe: 0.0
+    type: Sinc
+  name: Radar2
+  power: 55.0
+  pri_params:
+    jitter_percentage: 8.0
+    mean_pri: 0.001
+  pri_type: jitter
+  pulse_width_params:
+    jitter_percentage: 8.0
+    mean_pulse_width: 0.00025
+  pulse_width_type: jitter
+  rotation_params:
+    A: 0.5
+    T_rot: 2.5
+    alpha0: 180.0
+    phi0: 0.0
+    s: 1.0
+    t0: 2.0
+  rotation_type: varying
+  start_position:
+  - 500
+  - -300
+  start_time: 2.0
+  velocity:
+  - 0
+  - -10
 scenario:
   end_time: 100.0
   start_time: 0.0

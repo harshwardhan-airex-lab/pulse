@@ -317,32 +317,86 @@ def main():
             key="radar_count"
         )
 
+        # --- Start of Replacement Code ---
+        # This function definition replaces the existing set_num_radars
+        # inside the main() function of PULSE/apps/app.py
+
         def set_num_radars():
             """
-            1) Load fresh from base_config
-            2) Slice to user-specified number
-            3) Overwrite st.session_state.config
-            4) Save to temp config
+            Adjusts the number of radars in the session state configuration
+            without resetting other parameters like scenario or sensors.
+            Adds default radars if increasing the count, removes from the
+            end if decreasing. (Simplified version)
             """
-            base_conf = load_base_config()
-            base_scenario = base_conf.get('scenario', {})
-            base_radars = base_conf.get('radars', [])
-            base_sensors = base_conf.get('sensors', [])
+            # Get the desired number of radars from the Streamlit number input widget
+            desired_num_radars = st.session_state.radar_count
 
-            slice_count = min(num_radars, len(base_radars))
+            # Ensure 'radars' list exists in the session state config, initialize if not
+            # This check is good practice for robustness
+            if 'radars' not in st.session_state.config:
+                st.session_state.config['radars'] = []
 
-            new_conf = {}
-            new_conf['scenario'] = copy.deepcopy(base_scenario)
-            new_conf['radars'] = copy.deepcopy(base_radars[:slice_count])
-            if base_sensors:
-                new_conf['sensors'] = [base_sensors[0]]
-            else:
-                new_conf['sensors'] = copy.deepcopy(st.session_state.config['sensors'])
+            # Get the current list of radars and its length
+            current_radars = st.session_state.config['radars']
+            current_num_radars = len(current_radars)
 
-            st.session_state.config = new_conf
-            st.session_state.num_radars = num_radars
+            # --- Core Logic: Adjust radar list ---
+            if desired_num_radars < current_num_radars:
+                # If the desired number is less, truncate the list
+                st.session_state.config['radars'] = current_radars[:desired_num_radars]
+                # print(f"DEBUG: Reduced radars from {current_num_radars} to {desired_num_radars}") # Optional debug
+
+            elif desired_num_radars > current_num_radars:
+                # If the desired number is greater, add new radars
+                # Load the base configuration file to get a template for new radars
+                base_conf = load_base_config() # Assumes this loads dataconfig.yaml or similar
+                base_radars = base_conf.get('radars', [])
+
+                # Use a template for new radars (last from base or a fallback default)
+                if not base_radars:
+                    st.warning("Base config has no radars to use as a template. Using minimal default.")
+                    # Define a minimal default radar structure
+                    default_radar_template = {
+                        'name': 'DefaultRadar', 'power': 50.0, 'start_position': [0, 0],
+                        'velocity': [0, 0], 'start_time': 0.0,
+                        'rotation_type': 'constant', 'rotation_params': {'t0': 0.0, 'alpha0': 0.0, 'T_rot': 5.0},
+                        'pri_type': 'fixed', 'pri_params': {'pri': 0.001},
+                        'frequency_type': 'fixed', 'frequency_params': {'frequency': 1.0e9},
+                        'pulse_width_type': 'fixed', 'pulse_width_params': {'pulse_width': 1.0e-6},
+                        'lobe_pattern': {'type': 'Sinc', 'main_lobe_opening_angle': 5.0, 'radar_power_at_main_lobe': 0.0, 'radar_power_at_back_lobe': -20.0}
+                    }
+                else:
+                    # Use the *last* radar from the base configuration as a template
+                    default_radar_template = copy.deepcopy(base_radars[-1]) # deepcopy is important
+
+                # Calculate how many radars need to be added
+                num_to_add = desired_num_radars - current_num_radars
+
+                # Add the required number of new radars using the template
+                for i in range(num_to_add):
+                    # Create a fresh copy for each new radar
+                    new_radar = copy.deepcopy(default_radar_template)
+                    # Assign a unique default name based on its new index
+                    new_radar_index = current_num_radars + i + 1
+                    new_radar['name'] = f"Radar{new_radar_index}"
+                    # Append the newly created radar to the list in the session state
+                    st.session_state.config['radars'].append(new_radar)
+
+                # print(f"DEBUG: Increased radars from {current_num_radars} to {desired_num_radars}") # Optional debug
+
+            # --- End of Core Logic ---
+
+            # Update the 'num_radars' variable in session state (even if unchanged)
+            st.session_state.num_radars = desired_num_radars
+
+            # Save the potentially modified configuration to the temporary file
             save_temp_config(st.session_state.config, temp_config_path)
+            # print(f"DEBUG: Saved temp config after adjusting radar count.") # Optional debug
+
+            # Proceed to the next page in the Streamlit app flow
             next_page()
+
+        # --- End of Replacement Code ---
 
         col1, col2, col3 = st.columns([1,6,1])
         with col1:
